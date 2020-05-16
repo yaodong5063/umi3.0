@@ -1,10 +1,10 @@
 import request from '../utils/request';
 
-const url = '';
+const url = 'http://localhost:8999';
 
 // 登录
 export async function users(data) {
-  return request(`/test/users`, {
+  return request(`${url}/test/users`, {
     method: 'get',
     data,
   });
@@ -12,7 +12,7 @@ export async function users(data) {
 
 // 退出
 export async function logout(data) {
-  return request(`/test/users/logout`, {
+  return request(`${url}/test/users/logout`, {
     method: 'delete',
     data,
   });
@@ -20,7 +20,7 @@ export async function logout(data) {
 
 //菜单
 export async function menu(data) {
-  return request(`/test/menu`, {
+  return request(`${url}/test/menu`, {
     method: 'get',
     data,
   });

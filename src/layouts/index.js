@@ -20,11 +20,22 @@ class BasicLayout extends PureComponent {
   }
   state = {
     collapsed: false,
-    menu: [],
+    menu: undefined,
   };
 
   componentDidMount() {
     this.info();
+  }
+
+  componentDidUpdate(prevProps, prevState) {
+    const { menu } = this.state;
+    const { location } = this.props;
+    if (
+      prevProps.location.pathname !== location.pathname &&
+      menu === undefined
+    ) {
+      this.autoMenu();
+    }
   }
 
   info = () => {
@@ -32,7 +43,8 @@ class BasicLayout extends PureComponent {
   };
 
   autoMenu = () => {
-    const { dispatch } = this.props;
+    const { dispatch, location } = this.props;
+    if (includeUrls.includes(location.pathname)) return;
     dispatch({
       type: 'Test/menu',
     }).then(res => {
@@ -58,6 +70,7 @@ class BasicLayout extends PureComponent {
       //单页面，无左边
       return <>{children}</>;
     }
+
     return (
       <Layout>
         <Layout>

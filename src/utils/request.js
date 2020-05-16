@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { notification, message } from 'antd';
+import { message } from 'antd';
 import { history } from 'umi';
 import { httpHost } from './setting.js';
 import { rmStorage, getStorage } from './utils.js';
@@ -29,51 +29,12 @@ axios.interceptors.response.use(
   },
   function(error) {
     if (401 === error.response.status) {
-      history.push('/user/login');
+      history.push('/login');
     } else {
       return Promise.reject(error);
     }
   },
 );
-
-const checkStatus = response => {
-  // console.log(response);
-  if (response.status >= 200 && response.status < 300) {
-    return response.data;
-  } else if (response.status == 401) {
-    //登录失效
-    rmStorage('userInfo');
-    history.push('/user/login');
-  }
-  const errortext = codeMessage[response.status] || response.statusText;
-  notification.error({
-    message: `请求错误 ${response.status}: ${response.url}`,
-    description: errortext,
-  });
-  const error = new Error(errortext);
-  error.name = response.status;
-  error.response = response;
-  throw error;
-  return {};
-};
-
-const cachedSave = (response, hashcode) => {
-  const contentType = response.headers.get('Content-Type');
-  if (contentType && contentType.match(/application\/json/i)) {
-    response
-      .clone()
-      .text()
-      .then(content => {
-        try {
-          sessionStorage.setItem(hashcode, content);
-          sessionStorage.setItem(`${hashcode}:timestamp`, Date.now());
-        } catch (err) {
-          // console.log(err);
-        }
-      });
-  }
-  return response;
-};
 
 /**
  * Requests a URL, returning a promise.
@@ -94,7 +55,7 @@ export default function request(url, options) {
   let headers = {};
   let submitOpts = {};
 
-  let allUrl = (url.indexOf('http') === -1 ? httpHost : '') + url;
+  let allUrl = (url.includes('http') ? '' : httpHost) + url; // 判断是否带有全链接
   if (
     options.method === 'post' ||
     options.method === 'put' ||
@@ -134,43 +95,42 @@ export default function request(url, options) {
     submitOpts.params = options.data;
   }
 
-  return (
-    axios
-      .request({
-        url: allUrl,
-        method: options.method,
-        headers,
-        responseType: options.update && 'blob',
-        ...submitOpts,
-      })
-      .then(checkStatus)
-      // .then(response => cachedSave(response, hashcode))
-      .then(response => {
-        //过滤错误信息
-        if (options.uiniqueRes) {
-          return response;
-        } else if (
-          response.state == 401 ||
-          response.code == 401 ||
-          response.code == 1001109
-        ) {
-          rmStorage('tokenInfo');
-          message.error(response.message || '登录失效');
-          history.push('/user/login');
-          return { state: 1, code: 1, data: defaultVal };
-        } else if (!response || !(response.state == 0 || response.code == 0)) {
-          message.error(response.message || '发生错误');
-          return { state: 1, code: 1, data: defaultVal };
-        } else if (response.state == 1 || response.code == 1) {
-          message.error(response.msg || '发生错误');
-          return { state: 1, code: 1, data: defaultVal };
-        } else if (response.data === null || response.data === undefined) {
-          response.data = defaultVal;
-        }
-        return response;
-      })
-      .catch(e => {
-        return { state: 1, code: 1, data: defaultVal, message: '网络错误' };
-      })
-  );
+  return axios
+    .request({
+      url: allUrl,
+      method: options.method,
+      headers,
+      responseType: options.update && 'blob',
+      ...submitOpts,
+    })
+    .then(response => {
+      //过滤错误信息
+      const data = response?.data || {};
+      if (options.uiniqueRes) {
+        return data;
+      } else if (
+        data.state == 401 ||
+        data.code == 401 ||
+        data.code == 1001109
+      ) {
+        rmStorage('tokenInfo');
+        message.error(data.message || codeMessage[response.status]);
+        history.push('/login');
+      } else if (!data || !(data.state === 0 || data.code === 0)) {
+        message.error(data.message || codeMessage[response.status]);
+        return { state: 1, code: 1, data: data };
+      } else if (data.state === 1 || data.code === 1) {
+        message.error(data.message || codeMessage[response.status]);
+        return { state: 1, code: 1, data: data };
+      }
+      return data;
+    })
+    .catch(e => {
+      return {
+        state: 1,
+        code: 1,
+        data: defaultVal,
+        message: codeMessage[e.status],
+      };
+    });
 }
