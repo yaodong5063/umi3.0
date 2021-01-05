@@ -471,3 +471,8 @@ export const deepClone = (target,cache = new Map())=>{
       return target;
   }
 }
+
+//计算小数精度
+export const precision = (a,b)=>{
+   return (a+b).toLocaleString()*1;
+}
